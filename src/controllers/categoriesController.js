@@ -12,29 +12,12 @@ const getCategories = async (req, res) => {
 
 const postCategories = async (req, res) => {
   try {
-    let { name } = req.body;
-    name = name.toLowerCase();
-
-    const categories = await connection.query("SELECT * FROM categories");
-    const repeatedCategories = categories.rows.map((e) => e.name);
-    const isCategorieRepeated = repeatedCategories.includes(name);
-    if (isCategorieRepeated) {
-      res.sendStatus(409);
-      return;
-    }
-    const validationSchema = joi.object({
-      name: joi.string().required(),
-    });
-
-    const validation = validationSchema.validate({ name });
-    if (validation.error) {
-      res.sendStatus(400);
-      return;
-    }
+    const nameLocals = res.locals.name;
+    console.log(nameLocals);
 
     const insertCategories = await connection.query(
       "INSERT INTO categories (name) VALUES ($1)",
-      [name]
+      [nameLocals]
     );
     res.sendStatus(200);
   } catch (e) {
