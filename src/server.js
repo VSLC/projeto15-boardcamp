@@ -1,57 +1,19 @@
 import express from "express";
-import pkg from "pg";
 import joi from "joi";
 import cors from "cors";
 import dayjs from "dayjs";
 import sqlstring from "sqlstring";
-
-const { Pool } = pkg;
-const connection = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  user: "postgres",
-  password: "34525954",
-  host: "localhost",
-  port: 5432,
-  database: "boardcamp",
-});
+import connection from "./db.js";
+import { getCategories,postCategories } from "./controllers/categoriesController.js";
 
 const PORT = 4000;
 const server = express();
 server.use(express.json({ extended: true }));
 server.use(cors());
 
-server.get("/categories", async (req, res) => {
-  const categories = await connection.query("SELECT * FROM categories");
-  res.send(categories.rows);
-});
+server.get("/categories", getCategories);
 
-server.post("/categories", async (req, res) => {
-  let { name } = req.body;
-  name = name.toLowerCase();
-
-  const categories = await connection.query("SELECT * FROM categories");
-  const repeatedCategories = categories.rows.map((e) => e.name);
-  const isCategorieRepeated = repeatedCategories.includes(name);
-  if (isCategorieRepeated) {
-    res.sendStatus(409);
-    return;
-  }
-  const validationSchema = joi.object({
-    name: joi.string().required(),
-  });
-
-  const validation = validationSchema.validate({ name });
-  if (validation.error) {
-    res.sendStatus(400);
-    return;
-  }
-
-  const insertCategories = await connection.query(
-    "INSERT INTO categories (name) VALUES ($1)",
-    [name]
-  );
-  res.sendStatus(200);
-});
+server.post("/categories", postCategories);
 
 server.get("/games", async (req, res) => {
   const nameQuery = req.query.name;
@@ -266,17 +228,6 @@ server.post("/rentals", async (req, res) => {
 
 server.delete("/rentals/:id", async (req, res) => {
   const { id } = req.params;
-  const returnDateQuery = await connection.query(
-    `SELECT id,"rentDate" FROM rentals WHERE id=$1`,
-    [id]
-  );
-  const hasReturnDate = returnDateQuery.rows[0]?.rentDate;
-
-  if (hasReturnDate === undefined) {
-    res.sendStatus(400);
-    return;
-  }
-
   const idQuery = await connection.query(
     "SELECT id FROM rentals WHERE id=$1;",
     [id]
@@ -286,12 +237,25 @@ server.delete("/rentals/:id", async (req, res) => {
     return;
   }
 
+  const returnDateQuery = await connection.query(
+    `SELECT id,"returnDate" FROM rentals WHERE id=$1`,
+    [id]
+  );
+
+  const hasReturnDate = returnDateQuery.rows[0]?.returnDate;
+  console.log(hasReturnDate, "return Date");
+
+  if (hasReturnDate === null) {
+    res.sendStatus(400);
+    return;
+  }
+
   const deleteQuery = await connection.query(
     "DELETE FROM rentals WHERE id=$1",
     [id]
   );
 
-  res.status(200).send("ok");
+  res.sendStatus(200);
 });
 
 server.post("/rentals/:id/return", async (req, res) => {
