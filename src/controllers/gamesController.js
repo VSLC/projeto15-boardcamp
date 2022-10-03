@@ -54,7 +54,13 @@ const postGames = async (req, res) => {
     }
     const insertGames = await connection.query(
       `INSERT INTO games (name,image,"stockTotal","categoryId","pricePerDay") VALUES ($1, $2 ,$3, $4, $5) `,
-      [name, image, stockTotal, categoryId, pricePerDay]
+      [
+        res.locals.name,
+        res.locals.image,
+        res.locals.stockTotal,
+        res.locals.categoryId,
+        res.locals.pricePerDay,
+      ]
     );
     res.sendStatus(201);
   } catch (e) {
