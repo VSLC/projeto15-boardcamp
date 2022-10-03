@@ -3,45 +3,26 @@ import dayjs from "dayjs";
 
 const postRentals = async (req, res) => {
   try {
-    const { customerId, gameId, daysRented } = req.body;
-
-    const idsCustomers = await connection.query("SELECT id FROM customers");
-    const customerIdArray = idsCustomers.rows.map((e) => e.id);
-    const isCustomerIdValid = customerIdArray.includes(customerId);
-    console.log(isCustomerIdValid);
-    if (!isCustomerIdValid) {
-      res.sendStatus(400);
-      return;
-    }
-
-    const idsGames = await connection.query("SELECT id FROM games");
-    const gamesIdArray = idsGames.rows.map((e) => e.id);
-    const isGameIdValid = gamesIdArray.includes(customerId);
-    if (!isGameIdValid) {
-      res.sendStatus(400);
-      return;
-    }
-
-    if (daysRented <= 0) {
-      res.sendStatus(400);
-      return;
-    }
-
     const gamesQuery = await connection.query(
       "SELECT * FROM games WHERE id=$1",
-      [gameId]
+      [res.locals.gameId]
     );
 
-    console.log(gamesQuery.rows[0]);
-
     const pricePerDay = gamesQuery.rows[0].pricePerDay;
-    console.log(pricePerDay);
-    const originalPrice = pricePerDay * daysRented;
+    const originalPrice = pricePerDay * res.locals.daysRented;
     const rentDate = dayjs().format("YYYY-MM-DD");
 
     const insertRentals = await connection.query(
       'INSERT INTO rentals ("customerId", "gameId", "rentDate", "daysRented", "returnDate", "originalPrice", "delayFee") VALUES ($1, $2, $3, $4, $5, $6, $7 )',
-      [customerId, gameId, rentDate, daysRented, null, originalPrice, null]
+      [
+        res.locals.customerId,
+        res.locals.gameId,
+        rentDate,
+        res.locals.daysRented,
+        null,
+        originalPrice,
+        null,
+      ]
     );
 
     res.sendStatus(201);
@@ -179,29 +160,25 @@ const finishRentals = async (req, res) => {
 
     const returnDate = dayjs().format("YYYY-MM-DD");
     console.log(returnDate);
-    try {
-      const rentalsReturnQuery = await connection.query(
-        `SELECT rentals.*,games."pricePerDay" FROM rentals JOIN games ON games.id=rentals."gameId" WHERE rentals.id=$1;
+    const rentalsReturnQuery = await connection.query(
+      `SELECT rentals.*,games."pricePerDay" FROM rentals JOIN games ON games.id=rentals."gameId" WHERE rentals.id=$1;
     `,
-        [id]
-      );
-      const rent = rentalsReturnQuery.rows[0];
-      const daysDiff = dayjs().diff(rent.rentDate, "day");
-      const delayFee = daysDiff * rent.pricePerDay;
+      [id]
+    );
+    const rent = rentalsReturnQuery.rows[0];
+    const daysDiff = dayjs().diff(rent.rentDate, "day");
+    const delayFee = daysDiff * rent.pricePerDay;
 
-      const updateRentQuery = await connection.query(
-        `
+    const updateRentQuery = await connection.query(
+      `
     UPDATE rentals SET "returnDate"=$1,"delayFee"=$2 WHERE id=$3;
     `,
-        [returnDate, delayFee, id]
-      );
+      [returnDate, delayFee, id]
+    );
 
-      res.sendStatus(200);
-    } catch (e) {
-      res.sendStatus(500);
-    }
+    res.sendStatus(200);
   } catch (e) {
-    res.status(500).send(e);
+    res.sendStatus(500);
   }
 };
 
